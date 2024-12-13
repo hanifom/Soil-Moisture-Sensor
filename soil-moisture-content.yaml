@@ -1,0 +1,68 @@
+esphome:
+  name: soil-moisture-pump
+  platform: ESP32
+  board: esp-wrover-kit
+
+wifi:
+  ssid: "KOPERNIK"
+  password: "findingwhatworks"
+
+  # Static IP setup (optional)
+  manual_ip:
+    static_ip: 192.168.1.100
+    gateway: 192.168.1.1
+    subnet: 255.255.255.0
+
+  # Enable fallback hotspot in case of connection issues
+  ap:
+    ssid: "TP-Link Extender"
+    password: "Kukucyakuc1!"
+
+logger:
+api:
+ota: 
+    platform : esphome
+
+sensor:
+  - platform: adc
+    pin: GPIO36
+    name: "Soil Moisture"
+    id: soil_moisture
+    update_interval: 1s
+    attenuation: 12db
+    filters:
+      - calibrate_linear:
+          - 1100 -> 100  # Dry soil mapped to 100%
+          - 2600 -> 0    # Wet soil mapped to 0%
+
+switch:
+  - platform: gpio
+    pin: GPIO4
+    name: "Pump Control"
+    id: pump_control
+
+binary_sensor:
+  - platform: template
+    name: "Soil Dry"
+    lambda: |-
+      if (id(soil_moisture).state < 70) {
+        id(pump_control).turn_on();  // Turn ON pump if soil is dry
+        return true;
+      } else {
+        id(pump_control).turn_off(); // Turn OFF pump if soil is wet
+        return false;
+      }
+    filters:
+      - delayed_on: 1s
+      - delayed_off: 1s
+
+# Optional: Set thresholds for dry/wet status
+text_sensor:
+  - platform: template
+    name: "Soil Status"
+    lambda: |-
+      if (id(soil_moisture).state < 70) {
+        return {"Dry"};
+      } else {
+        return {"Wet"};
+      }
